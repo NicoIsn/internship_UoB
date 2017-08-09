@@ -1,0 +1,11 @@
+<launch>
+    <arg name="traj_topic" default="/pose"/>
+    <arg name="path_visualisation" default="true"/>
+    <arg name="map_info" default=""/>
+
+    <node pkg="multiple_robots_simu" type="trajectory_to_db.py" name="total_traj_to_db" output="screen" respawn="true">
+        <param name="traj_topic" value="$(arg traj_topic)" type="string"/>
+        <param name="path_visualisation" value="$(arg path_visualisation)" type="bool"/>
+        <param name="map_info" value="$(arg map_info)" type="string"/>
+    </node>
+</launch>

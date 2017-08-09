@@ -1,0 +1,5 @@
+<launch>
+
+   <node pkg="multiple_robots_simu" type="2robots_simulator_morse.sh" respawn="false" name="multiple_robots_simu_morse" output="screen"/>
+
+</launch>

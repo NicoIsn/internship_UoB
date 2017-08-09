@@ -1,0 +1,52 @@
+<launch>
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find strands_morse)/bham/maps/cs_lg.yaml">
+    <param name="frame_id" value="/map" />
+  </node>
+
+  <!-- BEGIN ROBOT 1-->
+  <group ns="robot1">
+
+    <param name="tf_prefix" value="robot1" />
+    <param name="amcl/initial_pose_x" value="-1.25" />
+    <param name="amcl/initial_pose_y" value="1" />
+    <param name="amcl/initial_pose_a" value="0.0"/>
+    <param name="amcl/odom_frame_id" value="odom"/>
+    <param name="amcl/base_frame_id" value="base_link"/>
+    <param name="amcl/use_map_topic" value="true"/>
+    <param name="robot_description" command="cat $(find strands_morse)/strands_sim/robots/scitosa5.urdf"/>
+
+    <node pkg="tf" type="static_transform_publisher" name="odom_map_broadcaster" args="0 0 0 0 0 0 1.0 robot1/base_link map 100"/>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" >
+        <param name="tf_prefix" type="string" value="robot1"/>
+    </node>
+    
+    <include file="$(find morse_basic_example_nav)/nav2.launch" />
+
+  </group>
+
+  <!-- BEGIN ROBOT 2-->
+  <group ns="robot2">
+
+
+    <param name="tf_prefix" value="robot2" />
+    <param name="amcl/initial_pose_x" value="-0.25" />
+    <param name="amcl/initial_pose_y" value="1" />
+    <param name="amcl/initial_pose_a" value="0.0"/>
+    <param name="amcl/odom_frame_id" value="odom"/>
+    <param name="amcl/base_frame_id" value="base_link"/>
+    <param name="amcl/use_map_topic" value="true"/>
+    <param name="robot_description" command="cat $(find strands_morse)/strands_sim/robots/scitosa5.urdf"/>
+
+    <node pkg="tf" type="static_transform_publisher" name="odom_map_broadcaster" args="0 0 0 0 0 0 1.0 robot2/base_link map 100"/>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" >
+        <param name="tf_prefix" type="string" value="robot2"/>
+    </node>
+
+    <include file="$(find morse_basic_example_nav)/nav2.launch" />
+
+  </group>
+
+</launch>

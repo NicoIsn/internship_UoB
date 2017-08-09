@@ -1,0 +1,8 @@
+<launch>
+
+   <!-- Scitos robot -->
+   <include file="$(find strands_morse)/launch/scitos.launch"/>
+
+   <node pkg="basic_example" type="simulator.sh" respawn="false" name="basic_example" output="screen"/>
+
+</launch>

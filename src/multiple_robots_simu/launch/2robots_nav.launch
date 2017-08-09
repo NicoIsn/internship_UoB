@@ -1,0 +1,5 @@
+<launch>
+
+   <node pkg="multiple_robots_simu" type="2robots_simulator.sh" respawn="false" name="multiple_robots_simu" output="screen"/>
+
+</launch>
