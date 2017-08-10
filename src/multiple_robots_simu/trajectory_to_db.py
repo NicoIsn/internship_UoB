@@ -9,7 +9,6 @@ import tf
 import rospy
 import math
 import pymongo
-import rospy
 from nav_msgs.msg import Path
 from strands_navigation_msgs.msg import TopologicalMap
 from mongodb_store.message_store import MessageStoreProxy

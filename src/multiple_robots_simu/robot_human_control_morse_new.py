@@ -7,9 +7,12 @@ import random
 import roslib
 roslib.load_manifest('multiple_robots_simu')
 import actionlib
+import multiple_robots_simu.msg
+from std_msgs.msg import Header
 from geometry_msgs.msg import *
 from soma_map_manager.srv import MapInfo
 from soma_manager.srv import SOMAQueryROIs
+from mongodb_store.message_store import MessageStoreProxy
 
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from math import radians, degrees
@@ -27,6 +30,7 @@ class Robot_human_control_morse(object):
         self.soma_service = rospy.ServiceProxy("/soma/query_rois", SOMAQueryROIs)
         self.soma_service.wait_for_service()
         self.result = self.soma_service(query_type=0, roiconfigs=['1'], returnmostrecent=True)
+        self._store_client = MessageStoreProxy(collection="markov_chain")
 
         # we count the number of regions on the map in the database
         self.regions = dict()
@@ -59,7 +63,13 @@ class Robot_human_control_morse(object):
         #print(self.centre_data[choice][0])
 
         # We have to build the Markov chains and store it in the database
-        self.build_Markov_database()
+        self.markov = self.build_Markov_database()
+        
+        print("-----------------------markov chain ------------------------------------")
+        print(self.markov)
+
+        self._publish_online_markov()
+        
 
     def simulation(self):
         
@@ -69,7 +79,6 @@ class Robot_human_control_morse(object):
         choice=self.search_index('13')
         self.simu.sleep(3)
            
-        rospy.init_node('map_navigation', anonymous=False)  #false because we don't want 2 node in the same time
         goalReached = False
         while not rospy.is_shutdown() : 
             print('-----------------------choice---------------------')
@@ -122,10 +131,10 @@ class Robot_human_control_morse(object):
         sumTotal=0
         for i in range(0,len(line_connexions)):
             temp=[]
-            temp.append(line_connexions[i])
-            index=self.search_index(line_connexions[i])
-            temp.append(self.num_connexions[index][1])
-            sumTotal+=self.num_connexions[index][1]
+            temp.append(line_connexions[i]) # we add the region ID 
+            index=self.search_index(line_connexions[i]) # we search for the index in the array 
+            temp.append(self.num_connexions[index][1])  # we add the coef proportional to the number of connexions corresponding
+            sumTotal+=self.num_connexions[index][1]     # we make a sum to now the number of connexions of every connected roi
             tab[i]=temp
 
         tab.sort(key=lambda colonnes: colonnes[1])
@@ -315,13 +324,14 @@ class Robot_human_control_morse(object):
         # we delete the data in case there is already a markov chain for this floor cs_lg of UoB CS lab, and rebuild it
         collection.remove({})
 
-        markov_chain=dict()
+        markov_chain=[]
 
         #process to fill in the markov chain 
         for i in range(0,self.nb_regions):
             useless,tab_proba = self.pick_new_region(self.array_connexions[i])
             temp={"ID_region":self.array_connexions[i][0],"proba_connexions":tab_proba}
             collection.insert(temp)
+            markov_chain.append(temp)
             #collection.update({'ID_region':self.array_connexions[i][0]},temp,upsert=True,multi=False)
         """
         # we can print the result
@@ -329,8 +339,47 @@ class Robot_human_control_morse(object):
         for post in collection.find():
             pprint.pprint(post)
         """
+        return markov_chain
+
+     # construct MarkovChain message based on MarkovChain.msg
+    def get_markov_chain_message(self):
+
+        chain = multiple_robots_simu.msg.MarkovChain()
+        chain.header = Header(1, rospy.Time.now(), '/map')
+        chain.id = "cs_lg"
+        
+        for i in range(0,self.nb_regions):
+            markov_proba = multiple_robots_simu.msg.MarkovArrayProba()
+            markov_proba.id_region = self.markov[i]['ID_region']
+            temp = self.markov[i]['proba_connexions']
+            print(temp)
+
+            for j in range(0,len(temp)):
+                markov_proba.id_connected_roi.append(temp[j][0])
+                markov_proba.proba_connected_roi.append(str(temp[j][1]))
+
+            chain.markov_chain.append(markov_proba)
+
+        return chain
+
+     # publish based on online markov chain
+    def _publish_online_markov(self):
+        chain_msg = self.get_markov_chain_message()
+        print(chain_msg)
+        meta = dict()
+        meta["map"] = "/map"
+        meta["taken"] = "online"
+        
+        if chain_msg is not None:
+            self._store_client.insert(chain_msg, meta)
+            rospy.loginfo("Total Regions: %d", self.nb_regions)
+        else :
+            rospy.loginfo("Markov_msg is None")
+        
+
 
 if __name__ == '__main__':
+    rospy.init_node('robot_human_control', anonymous=False)  #false because we don't want 2 nodes in the same time
     with pymorse.Morse() as simu:
         try:
             rospy.loginfo("Simulation ready ! Robots can begin to move")
